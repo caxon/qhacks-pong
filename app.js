@@ -57,8 +57,15 @@ function init() {
   scene.add( ball );
   // symmetric ball (opponent)
   sym_ball = new THREE.Mesh(geometry, material);
-  sym_ball.position.set(0,100, -1600); //starting point is arbitrary
+  sym_ball.position.set(5,20, -2000); //starting point is arbitrary
   scene.add(sym_ball);
+  var pos = firebase.database().ref('user1/position');
+  pos.on('value', function(snapshot) {
+    sym_ball.position.x = -snapshot.child('x').val();
+    sym_ball.position.y = snapshot.child('y').val();
+    sym_ball.position.z = -snapshot.child('z').val() - 2000;
+    console.log(sym_ball.position);
+  });
 
   // net for the table
   var netRect = new THREE.BoxGeometry(600, 50, 20);
@@ -114,9 +121,11 @@ function init() {
     ball.position.x = sphereBody.position.x*25.0;
     ball.position.y = sphereBody.position.z*25.0;
     ball.position.z = sphereBody.position.y*25.0;
+    /*
     sym_ball.position.x = -ball.position.x;
     sym_ball.position.y = ball.position.y;
     sym_ball.position.z = -1600 + -ball.position.z; //TODO: actual symmetry
+    */
     lastTime = time;
   })();
 }
@@ -171,7 +180,8 @@ function leapAnimate( frame ) {
       sphereBody.position.y = hand.palmPosition[2];
       sphereBody.position.z = hand.palmPosition[1] - 100;
     }
-
+    var hasHit = false;
+    var f_velocity;
     for ( var finger of hand.fingers ) {
       for ( var bone of finger.bones ) {
         if ( countBones++ === 0 ) { continue; }
@@ -185,10 +195,8 @@ function leapAnimate( frame ) {
             Math.abs(ball.position.z - bone.center()[2]),
           );
           if (deltaf.x < hitboxf.x && deltaf.y < hitboxf.y && deltaf.z < hitboxf.z){
-            console.log("fingers touched");
-            sphereBody.velocity.x = sphereBody.velocity.x + hand.palmVelocity[0]/100.0;
-            sphereBody.velocity.y = sphereBody.velocity.y + hand.palmVelocity[2]/100.0;
-            sphereBody.velocity.z = sphereBody.velocity.z + hand.palmVelocity[1]/100.0;
+            hasHit = true;
+            f_velocity = hand.palmVelocity;
           }
         }
       }
@@ -197,6 +205,18 @@ function leapAnimate( frame ) {
     var armMesh = armMeshes [ countArms++ ] || addMesh( armMeshes );
     updateMesh( arm, armMesh );
     armMesh.scale.set( arm.width / 4, arm.width / 2, arm.length );
+    if (hasHit){
+      //console.log("fingers touched");
+      sphereBody.velocity.x = sphereBody.velocity.x + f_velocity[0]/100.0;
+      sphereBody.velocity.y = sphereBody.velocity.y + f_velocity[2]/100.0;
+      sphereBody.velocity.z = sphereBody.velocity.z + f_velocity[1]/100.0;
+
+      // Write to Firebase!!
+      firebase.database().ref('user1').set({
+        position: ball.position,
+        velocity: sphereBody.velocity,
+      });
+    }
   }
   renderer.render( scene, camera );
   controls.update();

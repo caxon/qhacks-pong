@@ -148,24 +148,44 @@ function leapAnimate( frame ) {
   armMeshes.forEach( function( item ) { scene.remove( item ) } );
   boneMeshes.forEach( function( item ) { scene.remove( item ) } );
   for ( var hand of frame.hands ) {
-    var diff = Math.pow(hand.palmPosition[0] - ball.position.x, 2) + Math.pow(hand.palmPosition[1] -100 - ball.position.z,2) + Math.pow(hand.palmPosition[2] - ball.position.y,2);
+
     /*for (i = 0; i < 3; i++){
       diff += Math.pow(hand.palmPosition[i] - Object.keys(ball.position)[i], 2);
     }*/
     //console.log(diff);
-    if (diff < 800){
-      console.log(sphereBody.velocity);
-      sphereBody.velocity.x = sphereBody.velocity.x + hand.palmVelocity[0]/100;
-      sphereBody.velocity.y = sphereBody.velocity.y + hand.palmVelocity[2]/100;
-      sphereBody.velocity.z = sphereBody.velocity.z + hand.palmVelocity[1]/100;
-      console.log("after:");
-      console.log(sphereBody.velocity);
+
+    var hitboxf = new THREE.Vector3(30,30,30);
+
+    var isGrabbing = false;
+    var diff = Math.pow(Math.pow(hand.palmPosition[0] - ball.position.x, 2) + Math.pow(hand.palmPosition[1] -100 - ball.position.z,2) + Math.pow(hand.palmPosition[2] - ball.position.y,2), 0.5);
+
+    if(diff < 55 && hand.grabStrength > 0.90) {
+      console.log("Grab");
+      isGrabbing = true;
+      sphereBody.position.x = hand.palmPosition[0];
+      sphereBody.position.y = hand.palmPosition[2];
+      sphereBody.position.z = hand.palmPosition[1] -100;
     }
+
     for ( var finger of hand.fingers ) {
       for ( var bone of finger.bones ) {
         if ( countBones++ === 0 ) { continue; }
         var boneMesh = boneMeshes [ countBones ] || addMesh( boneMeshes );
         updateMesh( bone, boneMesh );
+
+        if(isGrabbing == false) {
+          var deltaf = new THREE.Vector3(
+            Math.abs(ball.position.x - bone.center()[0]),
+            Math.abs(ball.position.y + 100 - bone.center()[1]),
+            Math.abs(ball.position.z - bone.center()[2]),
+          );
+          if (deltaf.x < hitboxf.x && deltaf.y < hitboxf.y && deltaf.z < hitboxf.z){
+            console.log("fingers touched");
+            sphereBody.velocity.x = sphereBody.velocity.x + hand.palmVelocity[0]/100;
+            sphereBody.velocity.y = sphereBody.velocity.y + hand.palmVelocity[2]/100;
+            sphereBody.velocity.z = sphereBody.velocity.z + hand.palmVelocity[1]/100;
+          }
+        }
       }
     }
     var arm = hand.arm;
